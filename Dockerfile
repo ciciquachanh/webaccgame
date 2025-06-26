@@ -1,50 +1,49 @@
-# Base image PHP 8.2 với Apache
+# PHP + Apache
 FROM php:8.2-apache
 
-# Cài các extension Laravel cần
+# Cài extension Laravel
 RUN apt-get update && apt-get install -y \
     git curl zip unzip libpng-dev libonig-dev libxml2-dev libzip-dev \
     && docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd zip
 
-# Bật mod_rewrite của Apache để Laravel hoạt động
+# Bật mod_rewrite
 RUN a2enmod rewrite
 
-# Cài Composer từ image composer chính thức
+# Cài Composer từ image chính thức
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# Tạo các thư mục Laravel cần và file log để tránh lỗi ghi log
+# Tạo thư mục & file log
 RUN mkdir -p /var/www/html/storage/app \
     /var/www/html/storage/framework \
     /var/www/html/storage/logs \
     /var/www/html/bootstrap/cache && \
     touch /var/www/html/storage/logs/laravel.log
 
-# Set quyền ghi cho Laravel
-RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
-
-# Copy toàn bộ mã nguồn vào container
+# Copy toàn bộ source
 COPY . /var/www/html
 
-# Đặt thư mục làm việc
+# Set working dir
 WORKDIR /var/www/html
 
-# Copy file môi trường production
+# Copy file env
 COPY .env.production /var/www/html/.env
 
-# Cài đặt các gói composer (không cài dev)
+# Cài gói Laravel
 RUN composer install --no-dev --optimize-autoloader
 
-# Tạo key và cache lại Laravel
+# Laravel cache & key
 RUN php artisan key:generate --force && \
     php artisan config:clear && \
-    php artisan config:cache && \
     php artisan route:clear && \
-    php artisan route:cache && \
     php artisan view:clear && \
+    php artisan config:cache && \
+    php artisan route:cache && \
     php artisan view:cache
 
-# Cấu hình Apache trỏ vào thư mục public
-RUN sed -i 's|DocumentRoot /var/www/html|DocumentRoot /var/www/html/public|g' /etc/apache2/sites-available/000-default.conf
+# Phân quyền
+RUN chown -R www-data:www-data storage bootstrap/cache
 
-# Mở cổng 80
+# Apache trỏ về public
+RUN sed -i 's|DocumentRoot /var/www/html|DocumentRoot /var/www/html/public|' /etc/apache2/sites-available/000-default.conf
+
 EXPOSE 80
