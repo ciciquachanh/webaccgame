@@ -1,5 +1,6 @@
 # Sử dụng PHP 8.1 với Apache
-FROM php:8.1-apache
+FROM php:8.2-apache
+
 
 # Cài đặt các extension cần thiết cho Laravel
 RUN apt-get update && apt-get install -y \
