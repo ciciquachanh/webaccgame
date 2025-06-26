@@ -36,4 +36,15 @@ RUN php artisan key:generate --force && \
     php artisan config:clear && \
     php artisan route:clear && \
     php artisan view:clear && \
-    php artisan
+    php artisan config:cache && \
+    php artisan route:cache && \
+    php artisan view:cache
+
+# Cấp quyền ghi
+RUN chown -R www-data:www-data storage bootstrap/cache
+
+# Trỏ Apache về thư mục public
+RUN sed -i 's|DocumentRoot /var/www/html|DocumentRoot /var/www/html/public|g' /etc/apache2/sites-available/000-default.conf
+
+# Mở cổng 80
+EXPOSE 80
