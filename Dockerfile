@@ -6,23 +6,32 @@ RUN apt-get update && apt-get install -y \
     git curl zip unzip libpng-dev libonig-dev libxml2-dev libzip-dev \
     && docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd zip
 
-# Bật mod_rewrite của Apache
+# Bật mod_rewrite của Apache để Laravel hoạt động
 RUN a2enmod rewrite
 
-# Cài Composer
+# Cài Composer từ image chính thức
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# Copy toàn bộ source Laravel vào container
+# Tạo các thư mục Laravel yêu cầu (nếu chưa có)
+RUN mkdir -p /var/www/html/storage/app \
+    /var/www/html/storage/framework \
+    /var/www/html/storage/logs \
+    /var/www/html/bootstrap/cache
+
+# Copy toàn bộ mã nguồn Laravel vào container
 COPY . /var/www/html
 
-# Set thư mục làm việc
+# Copy file .env.production thành .env để Laravel đọc cấu hình
+COPY .env.production /var/www/html/.env
+
+# Chuyển thư mục làm việc sang thư mục Laravel
 WORKDIR /var/www/html
 
-# Cài đặt Laravel packages từ composer
+# Cài đặt gói Laravel qua Composer
 RUN composer install --optimize-autoloader --no-dev
 
-# Cấp quyền cho storage và cache
-RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
+# Cấp quyền ghi cho storage và cache
+RUN chown -R www-data:www-data storage bootstrap/cache
 
-# Mở cổng 80 để chạy app
+# Mở cổng 80 để web hoạt động
 EXPOSE 80
