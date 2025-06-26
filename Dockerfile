@@ -12,11 +12,12 @@ RUN a2enmod rewrite
 # Cài Composer từ image composer chính thức
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# Tạo thư mục Laravel cần thiết
+# Tạo thư mục Laravel cần thiết (và file log)
 RUN mkdir -p /var/www/html/storage/app \
     /var/www/html/storage/framework \
     /var/www/html/storage/logs \
-    /var/www/html/bootstrap/cache
+    /var/www/html/bootstrap/cache && \
+    touch /var/www/html/storage/logs/laravel.log
 
 # Copy toàn bộ mã nguồn Laravel vào container
 COPY . /var/www/html
@@ -27,23 +28,12 @@ WORKDIR /var/www/html
 # Copy file môi trường sản xuất
 COPY .env.production /var/www/html/.env
 
-# Cài đặt dependencies Laravel
+# Cài đặt Laravel dependencies
 RUN composer install --no-dev --optimize-autoloader
 
-# Clear và cache lại toàn bộ Laravel config
-RUN php artisan config:clear && \
+# Tạo key và cache config Laravel
+RUN php artisan key:generate --force && \
+    php artisan config:clear && \
     php artisan route:clear && \
     php artisan view:clear && \
-    php artisan config:cache && \
-    php artisan route:cache && \
-    php artisan view:cache && \
-    php artisan key:generate --force
-
-# Cấp quyền ghi cho Laravel
-RUN chown -R www-data:www-data storage bootstrap/cache
-
-# Trỏ Apache về thư mục public
-RUN sed -i 's|DocumentRoot /var/www/html|DocumentRoot /var/www/html/public|g' /etc/apache2/sites-available/000-default.conf
-
-# Mở cổng 80
-EXPOSE 80
+    php artisan
