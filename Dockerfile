@@ -1,3 +1,4 @@
+# Base image: PHP 8.2 + Apache
 FROM php:8.2-apache
 
 # Cài extension Laravel cần
@@ -11,38 +12,42 @@ RUN a2enmod rewrite
 # Cài Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# Tạo thư mục Laravel cần thiết
+# Tạo thư mục Laravel cần thiết và file log
 RUN mkdir -p /var/www/html/storage/logs \
-    /var/www/html/storage/framework \
+    /var/www/html/storage/framework/sessions \
+    /var/www/html/storage/framework/views \
+    /var/www/html/storage/framework/cache \
     /var/www/html/bootstrap/cache \
     && touch /var/www/html/storage/logs/laravel.log
 
-# Copy mã nguồn
+# Copy toàn bộ mã nguồn vào container
 COPY . /var/www/html
 
 # Đặt thư mục làm việc
 WORKDIR /var/www/html
 
-# Copy file môi trường production
+# Copy file .env production nếu có
 COPY .env.production /var/www/html/.env
 
-# Nếu không có .env, dùng bản example
-RUN if [ ! -f .env ]; then cp .env.example .env; fi
+# Trỏ Apache về thư mục public
+RUN sed -i 's|DocumentRoot /var/www/html|DocumentRoot /var/www/html/public|g' /etc/apache2/sites-available/000-default.conf
 
-# Cài đặt Laravel dependencies
+# Cài đặt Laravel packages
 RUN composer install --no-dev --optimize-autoloader
 
-# Tạo key và cache config Laravel
-RUN php artisan key:generate --force && \
-    php artisan config:clear && \
-    php artisan config:cache && \
-    php artisan route:cache && \
-    php artisan view:cache
+# Generate APP_KEY trước khi cache
+RUN php artisan key:generate --force
+
+# Xóa cache cũ và tạo cache mới
+RUN php artisan config:clear \
+ && php artisan route:clear \
+ && php artisan view:clear \
+ && php artisan config:cache \
+ && php artisan route:cache \
+ && php artisan view:cache
 
 # Cấp quyền ghi
 RUN chmod -R 777 storage bootstrap/cache
 
-# Trỏ Apache về public
-RUN sed -i 's|DocumentRoot /var/www/html|DocumentRoot /var/www/html/public|g' /etc/apache2/sites-available/000-default.conf
-
+# Mở cổng 80
 EXPOSE 80
